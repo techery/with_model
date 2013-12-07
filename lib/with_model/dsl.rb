@@ -1,5 +1,7 @@
 require 'active_support/core_ext/string/inflections'
 require 'with_model/base'
+require 'with_model/model_creator'
+require 'with_model/model_destroyer'
 
 module WithModel
   class Dsl
@@ -23,31 +25,19 @@ module WithModel
     end
 
     def execute
-      model_initialization = @model_initialization
-      const_name = @name.to_s.camelize
-      table_name = "with_model_#{@name.to_s.tableize}_#{$$}".freeze
-
       model = nil
+      creator = ModelCreator.new @name, @model_initialization
+      destroyer = ModelDestroyer
 
-      @example_group.with_table(table_name, @table_options, &@table_block)
+      @example_group.with_table(creator.table_name, @table_options, &@table_block)
 
       @example_group.before do
-        model = Class.new(WithModel::Base)
-        stub_const(const_name, model)
-        model.class_eval do
-          self.table_name = table_name
-          self.class_eval(&model_initialization)
-        end
-        model.reset_column_information
+        model = creator.create
+        stub_const(creator.const_name, model)
       end
 
       @example_group.after do
-        if model.superclass.respond_to?(:direct_descendants)
-          model.superclass.direct_descendants.delete(model)
-        end
-        if defined?(ActiveSupport::Dependencies::Reference)
-          ActiveSupport::Dependencies::Reference.clear!
-        end
+        destroyer.destroy model
       end
     end
   end
