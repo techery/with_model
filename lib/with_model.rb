@@ -9,14 +9,14 @@ module WithModel
     dsl = Model::DSL.new model
     dsl.instance_exec(&block) if block
 
-    before { model.create }
-    after { model.destroy }
+    before(:all) { model.create }
+    after (:all) { model.destroy }
   end
 
   def with_table(name, options = {}, &block)
     table = Table.new name, options, &block
 
-    before { table.create }
-    after { table.destroy }
+    before(:all) { table.create }
+    after (:all) { table.destroy }
   end
 end
